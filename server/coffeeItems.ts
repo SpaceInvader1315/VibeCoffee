@@ -344,7 +344,7 @@ function mapCsvToCoffeeItems(rows: string[][]): CoffeeItem[] {
       brewingMethods,
       image,
       shortDescription: existingPreset?.shortDescription || `${country}. Вкусовой профиль: ${tasteProfile}.`,
-      fullDescription: existingPreset?.fullDescription || `Свежеобжаренный спешелти кофе из ${country}. Вкусовой букет: ${tasteProfile}. Идеальный выбор для ценителей качества.`,
+      fullDescription: existingPreset?.fullDescription || `Свежеобжаренный натуральный кофе из ${country}. Вкусовой букет: ${tasteProfile}. Идеальный выбор для ценителей качества.`,
     });
   }
 
@@ -436,7 +436,7 @@ export function coffeeItemToProduct(item: CoffeeItem): Product {
   return {
     id: item.id,
     name: item.name,
-    subtitle: `Specialty 100% Арабика · ${item.country}`,
+    subtitle: `100% Арабика · ${item.country}`,
     category: 'beans',
     categoryLabel: 'Зерновой кофе (VibeCoffeItems)',
     price: item.price,
@@ -614,10 +614,97 @@ export function matchCoffeeByPreferences(
       reasons.push('шоколадно-ореховый профиль');
     }
 
+    // 10. Brewing method & equipment matching
+    if (q.includes('турк') || q.includes('джезв') || q.includes('ibrik') || q.includes('cezve')) {
+      if (item.id === 'brazil-sul-de-minas' || item.id === 'brazil-colombia-blend') {
+        score += 25;
+        reasons.push('идеально для заваривания в турке (джезве)');
+      }
+    }
+    if (q.includes('эспрессо') || q.includes('рожков') || q.includes('автомат') || q.includes('кофемашин')) {
+      if (item.id === 'brazil-sul-de-minas' || item.id === 'brazil-colombia-blend' || item.id === 'colombia-huila') {
+        score += 22;
+        reasons.push('прекрасно подходит для эспрессо и кофемашины');
+      }
+    }
+    if (q.includes('капучино') || q.includes('латте') || q.includes('флэт') || q.includes('молок')) {
+      if (item.id === 'brazil-sul-de-minas' || item.id === 'brazil-colombia-blend') {
+        score += 25;
+        reasons.push('густой насыщенный вкус, великолепно сочетается с молоком');
+      }
+    }
+    if (q.includes('v60') || q.includes('пуровер') || q.includes('воронк') || q.includes('кемекс') || q.includes('фильтр') || q.includes('капельн')) {
+      if (item.id === 'ethiopia-yirgacheffe' || item.id === 'kenya-aa' || item.id === 'costa-rica-tarrazu') {
+        score += 25;
+        reasons.push('раскрывается ярким букетом в воронке V60, кемексе и фильтре');
+      }
+    }
+    if (q.includes('колд брю') || q.includes('cold brew') || q.includes('холодн')) {
+      if (item.id === 'kenya-aa' || item.id === 'ethiopia-yirgacheffe') {
+        score += 25;
+        reasons.push('сочный ягодный профиль для освежающего Cold Brew');
+      }
+    }
+    if (q.includes('гейзер') || q.includes('мока') || q.includes('moka')) {
+      if (item.id === 'colombia-huila' || item.id === 'brazil-sul-de-minas') {
+        score += 22;
+        reasons.push('сбалансированная плотная чашка в гейзерной кофеварке');
+      }
+    }
+    if (q.includes('френч') || q.includes('french')) {
+      if (item.id === 'colombia-huila' || item.id === 'guatemala-antigua') {
+        score += 22;
+        reasons.push('насыщенная текстура для френч-пресса');
+      }
+    }
+
+    // 11. Roast level preferences
+    if (q.includes('светл') || q.includes('filter roast')) {
+      if (item.roastLevel <= 2) {
+        score += 20;
+        reasons.push('светлая фильтр-обжарка');
+      }
+    } else if (q.includes('средн') || q.includes('omni')) {
+      if (item.roastLevel === 3) {
+        score += 20;
+        reasons.push('универсальная средняя обжарка');
+      }
+    } else if (q.includes('темн') || q.includes('espresso roast')) {
+      if (item.roastLevel >= 4) {
+        score += 20;
+        reasons.push('темная эспрессо-обжарка');
+      }
+    }
+
     if (score > bestScore) {
       bestScore = score;
       bestMatch = item;
       bestReason = reasons.join(', ');
+    }
+  }
+
+  // If general variety/catalog inquiry or recommendation without specific constraints:
+  // Default to our signature top specialty variety
+  if (!bestMatch && items.length > 0) {
+    const isGeneralCatalogOrRec =
+      q.includes('сорт') ||
+      q.includes('кофе') ||
+      q.includes('каталог') ||
+      q.includes('магазин') ||
+      q.includes('ассортимент') ||
+      q.includes('наличи') ||
+      q.includes('посоветуй') ||
+      q.includes('порекомендуй') ||
+      q.includes('купить') ||
+      q.includes('выбрать') ||
+      q.includes('зерн') ||
+      q.includes('что есть') ||
+      q.includes('что взять');
+
+    if (isGeneralCatalogOrRec) {
+      bestMatch = items.find((i) => i.id === 'ethiopia-yirgacheffe') || items[0];
+      bestScore = 15;
+      bestReason = 'наш самый популярный флагманский сорт из каталога Vibe Coffee';
     }
   }
 

@@ -381,7 +381,7 @@ export default function App() {
                 <ShieldCheck className="w-4 h-4 text-[#7C5335] shrink-0 mt-0.5" />
                 <div>
                   <strong className="block font-semibold text-[#2C241E]">VibeCoffeItems</strong>
-                  <span>7 отборных сортов specialty арабики</span>
+                  <span>7 отборных сортов премиальной арабики</span>
                 </div>
               </div>
               <div className="flex items-start gap-2">

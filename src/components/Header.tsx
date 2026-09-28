@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
                 VIBE COFFEE
               </span>
               <span className="hidden sm:inline-flex text-[11px] font-medium uppercase tracking-wider text-[#8A6A4F] bg-[#F1E8DC] px-2 py-0.5 rounded">
-                Specialty Roastery
+                Coffee Roastery
               </span>
             </div>
             <p className="text-xs text-[#7A6B60] hidden sm:block">
