@@ -204,7 +204,7 @@ export async function getLiveFaqData(forceRefresh: boolean = false): Promise<{
               activeFaqSheet = parsed;
               lastSyncTimestamp = new Date().toISOString();
               syncStatus = 'synced_remote';
-              activeSheetTitle = `Google Sheets (VibeCoffeeFAQ ID: ${sheetId.slice(0, 6)}...${sheetId.slice(-4)})`;
+              activeSheetTitle = 'Google Sheets (VibeCoffeeFAQ)';
               console.log(`[Google Sheets] Successfully loaded ${parsed.length} live FAQ rows from sheet ${sheetId}`);
               return {
                 data: activeFaqSheet,

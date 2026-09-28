@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FaqItem, LogEntry, CoffeeItem } from '../types';
 import { X, Database, RefreshCw, Plus, CheckCircle2, Download, Search, Coffee, MapPin, Tag } from 'lucide-react';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface SheetsInspectorModalProps {
   isOpen: boolean;
@@ -119,7 +120,7 @@ export const SheetsInspectorModal: React.FC<SheetsInspectorModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-[#7A6B60]">
-                Таблицы: <code className="bg-[#EADBCE]/50 px-1 py-0.5 rounded text-[11px] font-semibold">VibeCoffeItems</code> (ID: 1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8), <code className="bg-[#EADBCE]/50 px-1 py-0.5 rounded text-[11px]">VibeCoffeeFAQ</code> и <code className="bg-[#EADBCE]/50 px-1 py-0.5 rounded text-[11px]">VibeCoffeeLogs</code>
+                Таблицы: <code className="bg-[#EADBCE]/50 px-1 py-0.5 rounded text-[11px] font-semibold">VibeCoffeItems</code>, <code className="bg-[#EADBCE]/50 px-1 py-0.5 rounded text-[11px]">VibeCoffeeFAQ</code> и <code className="bg-[#EADBCE]/50 px-1 py-0.5 rounded text-[11px]">VibeCoffeeLogs</code>
               </p>
             </div>
           </div>
@@ -238,7 +239,7 @@ export const SheetsInspectorModal: React.FC<SheetsInspectorModalProps> = ({
                   Официальная Google-таблица сортов: VibeCoffeItems
                 </strong>
                 <span className="text-[#7A6B60]">
-                  ID таблицы: <code className="font-mono text-[#3D2B1F] bg-white px-1.5 py-0.5 rounded border border-[#EADBCE]">1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8</code>
+                  Каталог сортов кофе: происхождение, вкусовой профиль, обжарка и цены
                 </span>
               </div>
               <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-medium text-[11px]">
@@ -347,7 +348,7 @@ export const SheetsInspectorModal: React.FC<SheetsInspectorModalProps> = ({
                             {log.question}
                           </td>
                           <td className="py-3 px-3 text-[#4A3B32] leading-relaxed align-top">
-                            {log.answer}
+                            <MarkdownRenderer content={log.answer} />
                           </td>
                           <td className="py-3 px-3 align-top whitespace-nowrap">
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#F1E8DC] text-[#66462C] border border-[#E2D2C2]">
@@ -519,7 +520,7 @@ export const SheetsInspectorModal: React.FC<SheetsInspectorModalProps> = ({
                 <div className="p-2.5 bg-white border border-[#EADBCE] rounded-xl">
                   <div className="font-semibold text-[#2C241E]">1. Таблица товаров: VibeCoffeItems</div>
                   <div className="text-[#7A6B60] text-[11px]">
-                    ID: <code>1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8</code> — название кофе, страна, вкусовой профиль, цена.
+                    Название кофе, страна происхождения, вкусовой профиль, цена.
                   </div>
                 </div>
                 <div className="p-2.5 bg-white border border-[#EADBCE] rounded-xl">

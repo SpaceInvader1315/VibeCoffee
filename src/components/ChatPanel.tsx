@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, SourceType } from '../types';
 import { Send, Sparkles, Coffee, AlertCircle, Clock, Database, Globe, RotateCcw, Copy, Check, ChevronRight } from 'lucide-react';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -14,8 +15,6 @@ const TASTE_SUGGESTIONS = [
   { label: '🍫 Шоколад и орехи без кислинки', query: 'Люблю плотный кофе с нотами шоколада и фундука без кислинки. Что порекомендуешь?' },
   { label: '🍓 Ягоды и цитрусы с кислинкой', query: 'Посоветуй кофе с яркой ягодной или цитрусовой кислинкой' },
   { label: '🌸 Жасмин, бергамот и персик', query: 'Хочу легкий цветочный сорт с нотами жасмина и персика' },
-  { label: '🍎 Спелое яблоко и карамель', query: 'Ищу кофе со вкусом красного яблока, меда и карамели' },
-  { label: '📦 Сроки и условия доставки', query: 'Какие условия и сроки доставки в магазине Vibe Coffee?' },
 ];
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -152,9 +151,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   </div>
                 )}
 
-                {/* Message text with whitespace rendering */}
-                <div className="whitespace-pre-line space-y-2">
-                  {msg.text}
+                {/* Message text with markdown rendering (bold and italic) */}
+                <div className="space-y-2">
+                  <MarkdownRenderer content={msg.text} />
                 </div>
 
                 {/* Interactive recommendation callout if AI recommended a product */}

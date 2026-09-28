@@ -343,7 +343,7 @@ export async function getLiveLogs(): Promise<{
             return {
               logs: remoteEntries,
               total: remoteEntries.length,
-              sheetName: `Google Sheets (VibeCoffeeLogs ID: ${sheetId.slice(0, 6)}...${sheetId.slice(-4)})`,
+              sheetName: 'Google Sheets (VibeCoffeeLogs)',
               remoteSynced: true,
             };
           }

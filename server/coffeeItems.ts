@@ -38,7 +38,7 @@ const COFFEE_IMAGES: Record<string, string> = {
 // Default fallback images
 const DEFAULT_COFFEE_IMAGE = 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?auto=format&fit=crop&w=800&q=80';
 
-// Authoritative default rows from Google Sheet VibeCoffeItems (ID: 1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8)
+// Authoritative default rows from Google Sheet VibeCoffeItems
 const INITIAL_COFFEE_ITEMS: CoffeeItem[] = [
   {
     id: 'ethiopia-yirgacheffe',
@@ -352,7 +352,7 @@ function mapCsvToCoffeeItems(rows: string[][]): CoffeeItem[] {
 }
 
 /**
- * Fetch live data from Google Sheets VibeCoffeItems (ID: 1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8)
+ * Fetch live data from Google Sheets VibeCoffeItems
  */
 export async function getLiveCoffeeItems(forceRefresh: boolean = false): Promise<{
   data: CoffeeItem[];
@@ -366,7 +366,7 @@ export async function getLiveCoffeeItems(forceRefresh: boolean = false): Promise
     const sheetId = process.env.GOOGLE_SHEETS_COFFEE_ITEMS_ID || VIBE_COFFEE_ITEMS_SHEET_ID;
     return {
       data: activeCoffeeItems,
-      sourceName: `Google Sheets (VibeCoffeItems ID: ${sheetId})`,
+      sourceName: 'Google Sheets (VibeCoffeItems)',
       isRemote: itemsSyncStatus === 'synced_remote',
       status: itemsSyncStatus,
     };
@@ -400,7 +400,7 @@ export async function getLiveCoffeeItems(forceRefresh: boolean = false): Promise
             console.log(`[Google Sheets] Successfully loaded ${parsed.length} live coffee items from VibeCoffeItems (${sheetId})`);
             return {
               data: activeCoffeeItems,
-              sourceName: `Google Sheets (VibeCoffeItems ID: ${sheetId})`,
+              sourceName: 'Google Sheets (VibeCoffeItems)',
               isRemote: true,
               status: itemsSyncStatus,
             };
@@ -415,7 +415,7 @@ export async function getLiveCoffeeItems(forceRefresh: boolean = false): Promise
 
   return {
     data: activeCoffeeItems,
-    sourceName: `Google Sheets (VibeCoffeItems ID: ${sheetId})`,
+    sourceName: 'Google Sheets (VibeCoffeItems)',
     isRemote: itemsSyncStatus === 'synced_remote',
     status: itemsSyncStatus,
   };

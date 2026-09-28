@@ -97,7 +97,7 @@ const EQUIPMENT_AND_ACCESSORIES: Product[] = [
 
 /**
  * Returns dynamic product catalog where coffee beans strictly reflect
- * items from Google Sheet VibeCoffeItems (ID: 1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8).
+ * items from Google Sheet VibeCoffeItems.
  */
 export function getFullCatalog(): Product[] {
   const coffeeItems = getAllCoffeeItems();

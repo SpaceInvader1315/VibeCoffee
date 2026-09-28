@@ -14,7 +14,7 @@ export const apiRouter = Router();
  * 2. Зафиксировать время начала обработки.
  * 3. Загрузить актуальные данные из Google Sheets:
  *    - База знаний магазина (VibeCoffeeFAQ)
- *    - Таблица товаров магазина (VibeCoffeItems ID: 1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8)
+ *    - Таблица товаров магазина (VibeCoffeItems)
  * 4. Принять решение через LLM:
  *    - Если пользователь сам попросил рекомендацию или явно назвал вкусовые предпочтения:
  *      подобрать и рекомендовать конкретный кофе из VibeCoffeItems.
@@ -106,7 +106,7 @@ apiRouter.post('/chat', async (req: Request, res: Response) => {
 });
 
 /**
- * Google Sheet VibeCoffeItems Endpoints (ID: 1VynuGR-LVzYYfLHtMqlWTvPUpZoaskWp_kNF7Z7TgM8)
+ * Google Sheet VibeCoffeItems Endpoints
  */
 apiRouter.get('/coffee-items', async (_req: Request, res: Response) => {
   const { data, sourceName, isRemote, status } = await getLiveCoffeeItems();

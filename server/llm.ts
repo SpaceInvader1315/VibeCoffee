@@ -387,7 +387,7 @@ export async function generateConsultantResponse(
 
   const systemInstruction = `Ты — экспертный AI-консультант онлайн-магазина свежеобжаренного спешелти-кофе «Vibe Coffee».
 
-КАТАЛОГ СОРТОВ КОФЕ МАГАЗИНА (Таблица VibeCoffeItems, Google Sheet ID: ${VIBE_COFFEE_ITEMS_SHEET_ID}):
+КАТАЛОГ СОРТОВ КОФЕ МАГАЗИНА (Таблица VibeCoffeItems):
 ${coffeeItemsContext}
 
 ГЛАВНЫЕ ПРАВИЛА:
