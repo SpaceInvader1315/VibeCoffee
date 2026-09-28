@@ -359,7 +359,7 @@ export default function App() {
 
           {/* Right Column: Recommended Product Card */}
           <div
-            className={`lg:col-span-5 xl:col-span-5 ${
+            className={`lg:col-span-5 xl:col-span-5 lg:sticky lg:top-22 ${
               mobileTab === 'chat' ? 'hidden lg:block' : 'block'
             }`}
           >

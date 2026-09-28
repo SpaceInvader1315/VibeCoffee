@@ -97,7 +97,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   return (
-    <div className="relative bg-[#FFFFFF] border border-[#EADBCE] rounded-2xl shadow-sm flex flex-col h-[780px] max-h-[88vh] overflow-hidden">
+    <div className="relative bg-[#FFFFFF] border border-[#EADBCE] rounded-2xl shadow-sm flex flex-col h-[880px] sm:h-[900px] lg:h-[calc(100vh-120px)] min-h-[720px] max-h-[94vh] overflow-hidden">
       {/* Floating "Стереть" button at the very top right of the chat container without consuming vertical space */}
       {messages.length > 1 && (
         <button
