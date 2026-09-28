@@ -1,0 +1,6 @@
+{
+  "name": "Vibe Coffee AI Consultant",
+  "description": "Умный AI-консультант для онлайн-магазина кофе с базой знаний Google Sheets (VibeCoffeeFAQ) и аудитом логов (VibeCoffeeLogs)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
