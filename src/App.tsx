@@ -153,12 +153,24 @@ export default function App() {
     setIsLoading(true);
 
     try {
+      // Build dialogue context from previous messages (excluding the static welcome greeting)
+      const chatHistory = messages
+        .filter((m) => m.id !== 'welcome-1')
+        .slice(-6)
+        .map((m) => ({
+          role: m.sender,
+          text: m.text,
+        }));
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: text.trim() }),
+        body: JSON.stringify({
+          question: text.trim(),
+          history: chatHistory,
+        }),
       });
 
       if (!response.ok) {

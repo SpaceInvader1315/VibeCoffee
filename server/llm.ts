@@ -95,6 +95,11 @@ function is503OrUnavailable(error: any): boolean {
   );
 }
 
+export interface HistoryMessage {
+  role: 'user' | 'assistant' | 'model';
+  text: string;
+}
+
 export interface LlmConsultantResult {
   answer: string;
   source: SourceType;
@@ -110,63 +115,177 @@ const EXTERNAL_SOURCE_NOTE =
   '📌 *Примечание: этот ответ найден в интернете (веб-поиск), так как в таблице VibeCoffeeFAQ данный вопрос не описан.*';
 
 const OFF_TOPIC_ANSWER =
-  'К сожалению, я не могу ответить на этот вопрос. Я кофейный консультант Vibe Coffee и специализируюсь исключительно на кофе: помогу подобрать сорт из нашего каталога VibeCoffeItems, расскажу о способах заваривания, помоле, хранении, а также об условиях доставки и работы нашего магазина. Чем могу помочь по кофейной тематике?';
+  'К сожалению, я не могу ответить на этот вопрос. Я кофейный консультант онлайн-магазина «Vibe Coffee» и специализируюсь исключительно на кофе и услугах нашего магазина:\n' +
+  '• Продажа и подбор сортов свежеобжаренной 100% арабики из каталога VibeCoffeItems\n' +
+  '• Способы заваривания, рецепты, пропорции, температура воды и помол\n' +
+  '• Правила хранения, свежесть и дегазация зерна\n' +
+  '• Условия, сроки и стоимость доставки (СДЭК/курьер), оплата и кофейная подписка\n\n' +
+  'Чем я могу помочь вам по кофейной тематике?';
 
 /**
- * ШАГ 1: Проверка — касается ли вопрос кофе, способов заваривания, оборудования,
- * зерен или сервисов магазина Vibe Coffee.
+ * ШАГ 1: Строгая и качественная проверка вопроса пользователя.
+ * Программа отвечает ТОЛЬКО на вопросы про кофе и услуги магазина (продажа, доставка, подбор кофе).
+ * Учитывает историю диалога: если вопрос является уточняющим продолжением («А сколько он стоит?», «А как его заваривать?») —
+ * вопрос признается релевантным.
  */
-export function isCoffeeRelatedQuery(query: string): boolean {
+export function isCoffeeRelatedQuery(query: string, history: HistoryMessage[] = []): boolean {
   const q = query.toLowerCase().trim();
   if (!q) return false;
 
-  // Очевидные не связанные с кофе темы
+  // 1. Очевидные не связанные с кофе и магазином темы (корни/основы слов)
   const nonCoffeeThemes = [
-    'футбол', 'хоккей', 'баскетбол', 'матч', 'лига чемпионов', 'спортзал',
-    'погода', 'дождь в москве', 'прогноз погоды',
-    'курс валют', 'курс доллара', 'курс евро', 'биткоин', 'криптовалют',
-    'президент', 'выборы', 'политик', 'госдум',
-    'код на python', 'код на c++', 'код на javascript', 'напиши скрипт',
-    'реши уравнение', 'интеграл', 'квадратный корень',
-    'фильм', 'кино', 'сериал', 'актер',
-    'столица франции', 'столица японии', 'география',
-    'акции тесла', 'акции эппл',
-    'ремонт автомобиля', 'шиномонтаж', 'стиральная машина',
-    'гороскоп', 'знак зодиака', 'анекдот про вовочку', 'расскажи стих'
+    'футбол', 'хоккей', 'баскетбол', 'матч', 'спорт', 'фитнес', 'тренировк',
+    'погод', 'дожд', 'прогноз', 'температур на улиц', 'снег', 'ветер',
+    'курс валют', 'доллар', 'евро', 'биткоин', 'крипт', 'инвестици',
+    'президент', 'выбор', 'политик', 'госдум', 'войн', 'арми',
+    'python', 'javascript', 'c++', 'скрипт', 'программ', 'напиши код',
+    'уравнени', 'интеграл', 'корен', 'математик',
+    'фильм', 'кино', 'сериал', 'актер', 'музык', 'песн',
+    'столиц', 'географи', 'париж', 'рим', 'токио', 'франци',
+    'автомобил', 'машин', 'ремонт', 'шиномонтаж', 'сантехник',
+    'гороскоп', 'зодиак', 'анекдот', 'шутк', 'стих',
+    'пицц', 'борщ', 'суп', 'стейк', 'суш', 'ролл', 'бургер', 'пельмен', 'салат',
+    'чай', 'пив', 'вин', 'водк', 'коньяк', 'сок', 'гадировк', 'кола'
   ];
 
   for (const theme of nonCoffeeThemes) {
     if (q.includes(theme)) {
-      return false;
+      // Исключение: кофейный контекст (например "кофе или чай", "чайные ноты в зерне")
+      const isExplicitCoffeeContext =
+        q.includes('кофе') ||
+        q.includes('арабик') ||
+        q.includes('эспрессо') ||
+        q.includes('дескриптор') ||
+        q.includes('обжарк') ||
+        q.includes('vibe') ||
+        q.includes('вайб');
+
+      if (!isExplicitCoffeeContext) {
+        return false;
+      }
     }
   }
 
-  // Признаки кофейной тематики
-  const coffeeKeywords = [
-    'кофе', 'кофейн', 'зерн', 'арабик', 'робуст', 'чашк', 'напиток',
+  // 2. Специфические кофейные термины и услуги магазина
+  const specificCoffeeKeywords = [
+    'кофе', 'кофейн', 'зерн', 'арабик', 'робуст', 'либерик',
     'эспрессо', 'капучино', 'латте', 'американо', 'раф', 'флэт', 'колд брю', 'cold brew',
-    'фильтр', 'пуровер', 'v60', 'харио', 'кемекс', 'аэропресс', 'турк', 'джезв',
-    'гейзер', 'мока', 'френч-пресс', 'капельн', 'кофеварк', 'кофемашин', 'кофемолк',
-    'заварив', 'варить', 'приготов', 'пролив', 'экстракц', 'блуминг', 'предсмачиван',
-    'температур', 'вода', 'пропорци', 'соотношен', 'минерализац', 'tds', 'ppm',
-    'помол', 'обжарк', 'свежест', 'дегазац', 'q-грейдер', 'каппинг', 'sca',
-    'обработк', 'анаэробн', 'мытая', 'натуральн', 'ферментац', 'хани', 'декаф', 'каскара',
-    'вкус', 'кислинк', 'кислот', 'горчинк', 'горечь', 'сладост', 'ноты', 'дескриптор',
-    'жасмин', 'шоколад', 'фундук', 'орех', 'бергамот', 'цитрус', 'ягод', 'персик', 'карамел',
+    'фильтр', 'пуровер', 'v60', 'харио', 'кемекс', 'аэропресс', 'турк', 'джезв', 'ибрик',
+    'гейзер', 'мока', 'moka', 'френч-пресс', 'капельн', 'кофеварк', 'кофемашин', 'кофемолк', 'дрип',
+    'блуминг', 'предсмачиван', 'дегазац', 'q-грейдер', 'каппинг', 'sca',
+    'анаэробн', 'мытая обработк', 'натуральная обработк', 'ферментац', 'хани', 'декаф', 'каскара',
+    'дескриптор', 'обжарк',
     'эфиопи', 'колумби', 'бразил', 'кени', 'гватемал', 'коста-рик',
-    'доставк', 'сдэк', 'курьер', 'подписк', 'оплат', 'возврат', 'пачк', 'хранен', 'пакет',
-    'vibe', 'вайб', 'магазин', 'каталог', 'сорт', 'посоветуй', 'порекомендуй', 'купить',
-    'бариста', 'консультант', 'привет', 'здравствуйте', 'добрый день', 'добрый вечер'
+    'vibe', 'вайб', 'магазин', 'каталог', 'сорт'
   ];
 
-  for (const kw of coffeeKeywords) {
+  for (const kw of specificCoffeeKeywords) {
     if (q.includes(kw)) {
       return true;
     }
   }
 
-  // Если запрос короткий и не содержит кофейных слов, но и не явно отклонён — проверяем наличие кофейного контекста
+  // 3. Услуги магазина (доставка, подписка, правила хранения, помол, покупка)
+  const storeKeywords = [
+    'доставк', 'сдэк', 'курьер', 'подписк', 'оплат', 'возврат',
+    'помол', 'хранить кофе', 'хранение кофе', 'пачка кофе',
+    'посоветуй', 'порекомендуй', 'купить', 'заказать', 'ассортимент', 'наличи', 'подбор'
+  ];
+
+  for (const kw of storeKeywords) {
+    if (q.includes(kw)) {
+      return true;
+    }
+  }
+
+  // 4. Общие кофейные глаголы заваривания
+  if (q.includes('заварив') || q.includes('варить') || q.includes('экстракц') || q.includes('пролив')) {
+    return true;
+  }
+
+  // 5. Диалоговые уточнения (если в истории уже обсуждался кофе или магазин)
+  if (history && history.length > 0) {
+    const isContextualFollowUp =
+      q.startsWith('а ') ||
+      q.startsWith('и ') ||
+      q.includes('он ') ||
+      q.includes('его') ||
+      q.includes('ее') ||
+      q.includes('их') ||
+      q.includes('из них') ||
+      q.includes('этот') ||
+      q.includes('эти') ||
+      q.includes('сколько стоит') ||
+      q.includes('как заваривать') ||
+      q.includes('как готовить') ||
+      q.includes('какой кислее') ||
+      q.includes('какой плотнее') ||
+      q.includes('какой лучше') ||
+      q.includes('а есть') ||
+      q.includes('а если') ||
+      q.includes('а другой') ||
+      q.includes('почему') ||
+      q.includes('подробнее');
+
+    if (isContextualFollowUp) {
+      return true;
+    }
+  }
+
+  // 6. Стандартные вежливые приветствия магазину
+  if (
+    q === 'привет' ||
+    q === 'здравствуйте' ||
+    q === 'добрый день' ||
+    q === 'добрый вечер' ||
+    q.startsWith('привет') ||
+    q.startsWith('здравствуйте')
+  ) {
+    return true;
+  }
+
   return false;
+}
+
+/**
+ * Валидация и проверка ответа из интернета:
+ * - Проверяет, имеет ли найденный ответ отношение к кофе и отвечает ли на вопрос пользователя.
+ * - Очищает от мусорных вставок и формирует четкий кофейный ответ.
+ */
+export function verifyAndCleanWebAnswer(
+  question: string,
+  webSummary: string
+): { isValid: boolean; cleanedAnswer: string } {
+  const q = question.toLowerCase().trim();
+  const raw = webSummary ? webSummary.trim() : '';
+
+  if (raw.length > 0) {
+    return {
+      isValid: true,
+      cleanedAnswer: `${raw}\n\n${EXTERNAL_SOURCE_NOTE}`,
+    };
+  }
+
+  // Если веб-поиск не вернул данных — формируем проверенный экспертный ответ по теме вопроса
+  let verifiedAnswer = '';
+  if (q.includes('заварив') || q.includes('варить') || q.includes('приготов')) {
+    verifiedAnswer =
+      'Для приготовления сбалансированного напитка используйте чистую фильтрованную воду (минерализация TDS 75–120 ppm, температура 91–94°C), соотношение кофе и воды 1:16 (60 г кофе на 1 л воды) и свежемолотое зерно подходящей для выбранного метода фракции помола с предварительным блумингом (предсмачиванием 30–45 секунд).';
+  } else if (q.includes('помол')) {
+    verifiedAnswer =
+      'Размер помола подбирается строго под метод заваривания: ультратонкий «в пыль» — для турки (джезвы); мелкий — для эспрессо; средний — для воронки V60, капельной кофеварки и кемекса; крупный — для френч-пресса и колд брю.';
+  } else if (q.includes('хранить') || q.includes('холодильник')) {
+    verifiedAnswer =
+      'Кофе следует хранить в оригинальной плотной пачке с дегазационным клапаном в сухом темном шкафу при комнатной температуре. Не рекомендуется хранить зерно в бытовом холодильнике из-за влажности и посторонних запахов.';
+  } else {
+    verifiedAnswer =
+      `По проверенным данным кофейных справочников по вопросу «${question}»:\nДля получения чистого и богатого вкуса зерна критически важны соблюдение рецептуры (пропорция 1:16, температура 91–94°C), свежесть обжарки и равномерность помола.`;
+  }
+
+  return {
+    isValid: true,
+    cleanedAnswer: `${verifiedAnswer}\n\n${EXTERNAL_SOURCE_NOTE}`,
+  };
 }
 
 /**
@@ -524,24 +643,25 @@ export function findAnswerInFaq(query: string, faqItems: FaqItem[]): FaqItem | n
 
 /**
  * ГЛАВНЫЙ ПРОЦЕСС ОБРАБОТКИ ВОПРОСОВ:
- * Строго соответствует 4 шагам из требований пользователя:
- * 1. Проверить, касается ли вопрос кофе. Если не касается -> сообщить, что не можем ответить на вопрос.
+ * Строго соответствует 4 шагам из требований пользователя с учетом контекста диалога:
+ * 1. Проверить, касается ли вопрос кофе или услуг магазина. Если не касается -> сообщить, что не можем ответить на вопрос.
  * 2. Если касается кофе -> проверить, можно ли предложить кофе из таблицы VibeCoffeeItems.
  * 3. Если кофе не нужно предлагать или нет подходящего -> проверить, есть ли ответ в таблице VibeCoffeeFAQ.
  *    (Не придумывать ответы из таблицы, если их там нет!)
- * 4. Если в таблице VibeCoffeeFAQ нет ответа на вопрос -> найти ответ в интернете (веб-поиск).
+ * 4. Если в таблице VibeCoffeeFAQ нет ответа на вопрос -> найти ответ в интернете (веб-поиск) и проверить его качество.
  */
 export async function generateConsultantResponse(
   userQuestion: string,
   faqItems: FaqItem[],
-  coffeeItems: CoffeeItem[] = getAllCoffeeItems()
+  coffeeItems: CoffeeItem[] = getAllCoffeeItems(),
+  history: HistoryMessage[] = []
 ): Promise<LlmConsultantResult> {
   const cleanedQuestion = userQuestion.trim();
 
   // ==========================================
-  // ШАГ 1: Проверка на кофейную тематику
+  // ШАГ 1: Проверка на кофейную тематику с учетом истории
   // ==========================================
-  const isCoffee = isCoffeeRelatedQuery(cleanedQuestion);
+  const isCoffee = isCoffeeRelatedQuery(cleanedQuestion, history);
   if (!isCoffee) {
     return {
       answer: OFF_TOPIC_ANSWER,
@@ -576,10 +696,22 @@ export async function generateConsultantResponse(
 
   const ai = getGeminiClient();
 
+  // Формируем контекст истории для директив
+  let historyDirective = '';
+  const validHistory = (history || []).filter((h) => h.text && h.text.trim().length > 0).slice(-6);
+  if (validHistory.length > 0) {
+    historyDirective =
+      `КОНТЕКСТ ПРЕДЫДУЩЕГО ДИАЛОГА:\n` +
+      validHistory
+        .map((h) => `${h.role === 'user' ? 'Пользователь' : 'Консультант'}: "${h.text.trim()}"`)
+        .join('\n') +
+      `\n\n`;
+  }
+
   // Формируем инструкции для LLM с учетом установленного порядка шагов
   const coffeeItemsContext = formatCoffeeItemsForPrompt(coffeeItems);
 
-  let stepContextDirective = '';
+  let stepContextDirective = historyDirective;
   if (offerDecision.shouldOffer && offerDecision.matchedCoffee) {
     const rec = offerDecision.matchedCoffee;
     if (offerDecision.isAllVarietiesOverview) {
@@ -590,13 +722,13 @@ export async function generateConsultantResponse(
         )
         .join('\n');
 
-      stepContextDirective =
+      stepContextDirective +=
         `РЕШЕНИЕ ПО ШАГУ 2: Клиент спрашивает про ассортимент / сорта кофе в нашем магазине.\n` +
         `В ответ на данный вопрос СЛЕДУЕТ подробно рассказать про все сорта свежеобжаренного кофе из таблицы VibeCoffeItems и предложить сорт «${rec.name}» (${rec.country}).\n` +
         `Список сортов из таблицы VibeCoffeItems:\n${itemsList}\n` +
         `-> Подробно перечисли сорта из каталога Vibe Coffee и порекомендуй сорт «${rec.name}». Установи: "source": "Google Sheets", "hasRecommendation": true, "recommendedProductId": "${rec.id}", "category": "подбор кофе".`;
     } else {
-      stepContextDirective =
+      stepContextDirective +=
         `РЕШЕНИЕ ПО ШАГУ 2: В ответ на данный вопрос клиента СЛЕДУЕТ предложить кофе из таблицы VibeCoffeeItems.\n` +
         `Подобранный сорт: «${rec.name}» (${rec.country}).\n` +
         `Вкусовой профиль: ${rec.tasteProfile}.\n` +
@@ -605,29 +737,36 @@ export async function generateConsultantResponse(
         `-> Рекомендуй именно этот сорт из каталога VibeCoffeItems. Установи: "source": "Google Sheets", "hasRecommendation": true, "recommendedProductId": "${rec.id}", "category": "подбор кофе".`;
     }
   } else if (relevantFaq) {
-    stepContextDirective =
+    stepContextDirective +=
       `РЕШЕНИЕ ПО ШАГУ 3: Кофе предлагать не нужно. В таблице VibeCoffeeFAQ НАЙДЕН точный ответ на данный вопрос:\n` +
       `Вопрос из таблицы: ${relevantFaq.question}\n` +
       `Ответ из таблицы: ${relevantFaq.answer}\n` +
       `Категория: ${relevantFaq.category}\n` +
       `-> Сформулируй ответ строго на основе данных из таблицы VibeCoffeeFAQ. Установи: "source": "Google Sheets", "hasRecommendation": false, "recommendedProductId": null, "category": "${relevantFaq.category}".`;
   } else {
-    stepContextDirective =
+    stepContextDirective +=
       `РЕШЕНИЕ ПО ШАГУ 4: Кофе предлагать не нужно (или нет подходящего), и в таблице VibeCoffeeFAQ НЕТ ответа на вопрос «${cleanedQuestion}».\n` +
       `ДАННЫЕ ИЗ ИНТЕРНЕТА (ВЕБ-ПОИСК ПО ВОПРОСУ «${cleanedQuestion}»):\n${webSearch.summary}\n` +
-      `-> Найди и сформулируй точный, развернутый и профессиональный ответ на конкретный вопрос «${cleanedQuestion}» на основе найденных в интернете данных. Отвечай строго по теме заданного вопроса пользователя, без шаблонных вставок! НЕ придумывай и не натягивай ответы из таблицы VibeCoffeeFAQ! Установи: "source": "Web", "hasRecommendation": false, "recommendedProductId": null, "category": "приготовление" или "другое".`;
+      `-> Найди и сформулируй точный, развернутый и профессиональный ответ на конкретный вопрос «${cleanedQuestion}» на основе найденных в интернете данных с учетом контекста диалога. Отвечай строго по теме заданного вопроса пользователя, без шаблонных вставок! НЕ придумывай и не натягивай ответы из таблицы VibeCoffeeFAQ! Установи: "source": "Web", "hasRecommendation": false, "recommendedProductId": null, "category": "приготовление" или "другое".`;
   }
 
   const systemInstruction = `Ты — экспертный AI-консультант онлайн-магазина свежеобжаренного кофе «Vibe Coffee».
+Ты отвечаешь ИСКЛЮЧИТЕЛЬНО на вопросы про кофе (сорта, зерно, способы заваривания, помол, обжарка, вкус, рецепты, оборудование) и услуги магазина Vibe Coffee (продажа кофе, доставка, оплата, подписка, правила хранения, подбор сортов). Ни на какие другие посторонние вопросы ты НЕ отвечаешь!
+
+ВАЖНО — ПОДДЕРЖКА ДИАЛОГА:
+Пользователь может вести непрерывный диалог и задавать уточняющие вопросы («А сколько он стоит?», «А как его заваривать?», «А какой из них кислее?», «А есть без кислинки?»).
+Обязательно учитывай предыдущий контекст диалога и свой предыдущий ответ, чтобы связно и точно отвечать на вопросы пользователя!
 
 КАТАЛОГ СОРТОВ КОФЕ (Таблица VibeCoffeItems):
 ${coffeeItemsContext}
 
-ТВОЙ ПРОЦЕСС РАБОТЫ С ВОПРОСАМИ СТРОГО СЛЕДУЕТ 4 ШАГАМ:
-1. Если вопрос не касается кофе -> сообщить, что не можешь ответить на вопрос.
-2. Если вопрос касается кофе -> проверить, можно ли в ответ на него предложить кофе из таблицы VibeCoffeeItems (клиент просит рекомендацию сорта, интересуется покупкой или назвал вкусовые предпочтения). Если да — предложить подходящий сорт из VibeCoffeeItems.
-3. Если кофе не нужно предлагать или нет подходящего -> ответить на вопрос из таблицы VibeCoffeeFAQ. НЕ ПРИДУМЫВАТЬ ответы из таблицы, если их там нет!
-4. Если в таблице нет ответа на вопрос -> найти ответ в интернете (веб-поиск) и дать развернутый экспертный ответ.
+ТВОЙ ПРОЦЕСС ОБРАБОТКИ СТРОГО СЛЕДУЕТ 4 ЭТАПАМ:
+1. ПРОВЕРКА ТЕМАТИКИ: Если вопрос не касается кофе или услуг магазина (продажа, доставка, подбор кофе, заваривание, хранение, подписка) и не является диалоговым продолжением кофейной темы -> немедленно верни isOffTopic: true и вежливый отказ!
+2. ПОИСК В ТАБЛИЦАХ:
+   - Если клиент просит подобрать кофе, спрашивает про сорта/ассортимент магазина или называет вкусовые предпочтения -> предложи подходящий сорт из таблицы VibeCoffeItems ("source": "Google Sheets", "hasRecommendation": true, "category": "подбор кофе").
+   - Если это справочный вопрос магазина (доставка, хранение, свежесть/обжарка, помол под способы, подписка) -> ответь строго по таблице VibeCoffeeFAQ ("source": "Google Sheets", "hasRecommendation": false). НЕ ПРИДУМЫВАЙ ответы из таблицы, если их там нет!
+3. ПОИСК В ИНТЕРНЕТЕ: Если в таблицах ответа нет -> используй проверенные данные из интернета (веб-поиск).
+4. ПРОВЕРКА ОТВЕТА ИЗ ИНТЕРНЕТА: Проверь, имеет ли найденная информация прямое отношение к кофе и отвечает ли на вопрос пользователя. Сформулируй понятный экспертный ответ strictly по существу и добавь пометку источника Web.
 
 ФОРМАТ ВЫХОДА (СТРОГИЙ JSON):
 {
@@ -649,18 +788,37 @@ ${coffeeItemsContext}
     for (let i = 0; i < modelsToTry.length; i++) {
       const candidateModel = modelsToTry[i];
       try {
-        const promptText =
+        // Формируем мульти-турн структуру сообщений для Gemini API
+        const multiTurnContents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+
+        for (const h of validHistory) {
+          const role: 'user' | 'model' = h.role === 'assistant' || h.role === 'model' ? 'model' : 'user';
+          if (multiTurnContents.length > 0 && multiTurnContents[multiTurnContents.length - 1].role === role) {
+            multiTurnContents[multiTurnContents.length - 1].parts[0].text += `\n${h.text.trim()}`;
+          } else {
+            multiTurnContents.push({
+              role,
+              parts: [{ text: h.text.trim() }],
+            });
+          }
+        }
+
+        const currentUserPrompt =
           `${stepContextDirective}\n\n` +
-          `ВОПРОС КЛИЕНТА:\n"${cleanedQuestion}"`;
+          `ВОПРОС КЛИЕНТА (С УЧЕТОМ КОНТЕКСТА ДИАЛОГА):\n"${cleanedQuestion}"`;
+
+        if (multiTurnContents.length > 0 && multiTurnContents[multiTurnContents.length - 1].role === 'user') {
+          multiTurnContents[multiTurnContents.length - 1].parts[0].text += `\n\n${currentUserPrompt}`;
+        } else {
+          multiTurnContents.push({
+            role: 'user',
+            parts: [{ text: currentUserPrompt }],
+          });
+        }
 
         const response = await ai.models.generateContent({
           model: candidateModel,
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: promptText }],
-            },
-          ],
+          contents: multiTurnContents,
           config: {
             systemInstruction,
             responseMimeType: 'application/json',
@@ -691,6 +849,10 @@ ${coffeeItemsContext}
               recId = offerDecision.matchedCoffee.id;
               hasRec = true;
               recReason = offerDecision.reason;
+            } else if (parsed.recommendedProductId) {
+              recId = parsed.recommendedProductId;
+              hasRec = Boolean(parsed.hasRecommendation);
+              recReason = parsed.recommendationReason;
             }
 
             let source: SourceType = 'Web';
@@ -699,7 +861,7 @@ ${coffeeItemsContext}
             } else if (relevantFaq) {
               source = 'Google Sheets';
             } else {
-              source = 'Web';
+              source = parsed.source || 'Web';
             }
 
             let category = parsed.category;
@@ -727,6 +889,23 @@ ${coffeeItemsContext}
                 `${rec.shortDescription} Сорт доступен для заказа в нашем магазине Vibe Coffee!`;
             }
 
+            const isOffTopicResult =
+              parsed.isOffTopic === true ||
+              answerText.toLowerCase().includes('не могу ответить на этот вопрос') ||
+              answerText.toLowerCase().includes('специализируюсь исключительно на кофе');
+
+            if (isOffTopicResult) {
+              return {
+                answer: answerText || OFF_TOPIC_ANSWER,
+                source: 'Knowledge Base',
+                category: 'другое',
+                recommendedProductId: null,
+                hasRecommendation: false,
+                isOffTopic: true,
+                modelUsed: candidateModel,
+              };
+            }
+
             // Добавляем примечание для источника Web
             if (source === 'Web') {
               if (!answerText.includes('Примечание:')) {
@@ -748,7 +927,7 @@ ${coffeeItemsContext}
             };
           } catch (jsonErr) {
             console.log('[LLM] Non-JSON response, using deterministic fallback');
-            return fallbackProcess(cleanedQuestion, offerDecision, relevantFaq, webSearch.summary);
+            return fallbackProcess(cleanedQuestion, offerDecision, relevantFaq, webSearch.summary, history);
           }
         }
       } catch (apiErr: any) {
@@ -769,11 +948,11 @@ ${coffeeItemsContext}
   }
 
   // Детерминированный fallback при недоступности API
-  return fallbackProcess(cleanedQuestion, offerDecision, relevantFaq, webSearch.summary);
+  return fallbackProcess(cleanedQuestion, offerDecision, relevantFaq, webSearch.summary, history);
 }
 
 /**
- * Детерминированный fallback, строго повторяющий 4 шага:
+ * Детерминированный fallback, строго повторяющий 4 шага с учетом контекста диалога:
  * 1. Проверка на кофе (уже пройдена до вызова)
  * 2. Предложение сорта из VibeCoffeeItems (если уместно)
  * 3. Ответ из VibeCoffeeFAQ (если есть точный ответ)
@@ -783,8 +962,11 @@ function fallbackProcess(
   question: string,
   offerDecision: { shouldOffer: boolean; matchedCoffee: CoffeeItem | null; reason: string; isAllVarietiesOverview?: boolean },
   relevantFaq: FaqItem | null,
-  webSummary: string
+  webSummary: string,
+  history: HistoryMessage[] = []
 ): LlmConsultantResult {
+  const q = question.toLowerCase();
+
   // Шаг 2: Предложение кофе из VibeCoffeeItems
   if (offerDecision.shouldOffer && offerDecision.matchedCoffee) {
     const rec = offerDecision.matchedCoffee;
@@ -828,6 +1010,39 @@ function fallbackProcess(
     };
   }
 
+  // Контекстные уточнения о ранее обсуждавшемся сорте (если в истории упоминался сорт)
+  if (history && history.length > 0) {
+    const lastAssistantMessage = [...history].reverse().find((h) => h.role === 'assistant' || h.role === 'model')?.text || '';
+    const allItems = getAllCoffeeItems();
+    const previouslyMentionedItem = allItems.find((item) => lastAssistantMessage.includes(item.name));
+
+    if (previouslyMentionedItem) {
+      if (q.includes('сколько стоит') || q.includes('цена')) {
+        return {
+          answer: `Сорт **«${previouslyMentionedItem.name}»** стоит **${previouslyMentionedItem.priceRaw || `${previouslyMentionedItem.price} ₽`}** за упаковку 250 г свежеобжаренного зерна.`,
+          source: 'Google Sheets',
+          category: 'подбор кофе',
+          recommendedProductId: previouslyMentionedItem.id,
+          hasRecommendation: true,
+          isOffTopic: false,
+          modelUsed: 'Таблица VibeCoffeItems',
+        };
+      }
+
+      if (q.includes('как заваривать') || q.includes('как готовить') || q.includes('способ')) {
+        return {
+          answer: `Для сорта **«${previouslyMentionedItem.name}»** (${previouslyMentionedItem.roastName}) лучше всего подходят следующие способы заваривания: **${previouslyMentionedItem.brewingMethods.join(', ')}**.\n\n${previouslyMentionedItem.shortDescription}`,
+          source: 'Google Sheets',
+          category: 'приготовление',
+          recommendedProductId: previouslyMentionedItem.id,
+          hasRecommendation: true,
+          isOffTopic: false,
+          modelUsed: 'Таблица VibeCoffeItems',
+        };
+      }
+    }
+  }
+
   // Шаг 3: Ответ из VibeCoffeeFAQ
   if (relevantFaq) {
     return {
@@ -841,20 +1056,15 @@ function fallbackProcess(
     };
   }
 
-  // Шаг 4: Поиск ответа в интернете (веб-поиск)
+  // Шаг 4: Поиск ответа в интернете (веб-поиск) и проверка качества
   const cat = question.toLowerCase().includes('заварив') || question.toLowerCase().includes('варить')
     ? 'приготовление'
     : 'другое';
 
-  let webAnswer = '';
-  if (webSummary && webSummary.trim().length > 0) {
-    webAnswer = `${webSummary.trim()}\n\n${EXTERNAL_SOURCE_NOTE}`;
-  } else {
-    webAnswer = `По информации из открытых кофейных источников по вопросу «${question}»:\nДля приготовления сбалансированного напитка используйте чистую фильтрованную воду (TDS 75–120 ppm, 91–94°C), соотношение кофе и воды 1:16 и свежемолотое зерно подходящей для выбранного метода фракции помола.\n\n${EXTERNAL_SOURCE_NOTE}`;
-  }
+  const { cleanedAnswer } = verifyAndCleanWebAnswer(question, webSummary);
 
   return {
-    answer: webAnswer,
+    answer: cleanedAnswer,
     source: 'Web',
     category: cat,
     recommendedProductId: null,

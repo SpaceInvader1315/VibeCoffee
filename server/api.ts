@@ -24,7 +24,7 @@ export const apiRouter = Router();
  */
 apiRouter.post('/chat', async (req: Request, res: Response) => {
   const startTime = Date.now();
-  const { question } = req.body || {};
+  const { question, history } = req.body || {};
 
   if (!question || typeof question !== 'string' || question.trim().length === 0) {
     res.status(400).json({ error: 'Вопрос не может быть пустым' });
@@ -38,8 +38,8 @@ apiRouter.post('/chat', async (req: Request, res: Response) => {
       getLiveCoffeeItems(),
     ]);
 
-    // 4. Обработка вопроса через LLM со строгими правилами рекомендаций
-    const result = await generateConsultantResponse(question, faqItems, coffeeItems);
+    // 4. Обработка вопроса через LLM с учетом истории диалога
+    const result = await generateConsultantResponse(question, faqItems, coffeeItems, history);
 
     // 5. Продолжительность обработки
     const durationMs = Date.now() - startTime;
